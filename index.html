@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우리들의 추억여행</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Gowun Batang', serif;
+            background-color: #050a18;
+            color: #ffffff;
+        }
+
+        #canvas-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .modal {
+            background: rgba(15, 23, 42, 0.85);
+            padding: 40px 60px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            pointer-events: auto;
+            transition: all 1s ease;
+            max-width: 500px;
+        }
+
+        .modal h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        .modal p {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            color: #cbd5e1;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-family: 'Gowun Batang', serif;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #fff;
+            color: #0f172a;
+            box-shadow: 0 0 15px rgba(255,255,255,0.4);
+        }
+
+        #phrase-container {
+            position: absolute;
+            top: 22%;
+            width: 100%;
+            text-align: center;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .phrase {
+            position: absolute;
+            width: 100%;
+            left: -150px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-shadow: 0 0 12px rgba(255,255,255,0.8);
+            opacity: 0;
+            transition: transform 0.1s linear, opacity 0.5s ease;
+        }
+
+        #timeline-indicator {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            font-size: 1.2rem;
+            letter-spacing: 5px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.85);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.7);
+            display: none;
+        }
+
+        .hide {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-bg"></canvas>
+    <div id="timeline-indicator">새벽의 기억</div>
+    <div id="phrase-container"></div>
+
+    <div class="ui-layer">
+        <div id="start-modal" class="modal">
+            <h1>시간의 등대</h1>
+            <p>이곳은 외딴 생각의 섬입니다.<br>선착장에 대기 중인 배에 올라타<br>당신의 꿈을 찾는 긴 여정을 시작하세요.</p>
+            <button class="btn" onclick="startVoyage()">배에 승선하기</button>
+        </div>
+
+        <div id="end-modal" class="modal hide">
+            <h1>미래의 해안</h1>
+            <p>긴 항해가 끝났습니다.<br>화려한 미래의 불빛 속에 도달했으니<br>단단해진 꿈과 함께 여정을 갈무리하세요.</p>
+            <button class="btn" onclick="endVoyage()">여정 마치기</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let voyageStarted = false;
+        let voyageProgress = 0; 
+        let waveOffset = 0;
+        let smokeTime = 0; 
+        let lightAngle = 0; 
+
+        const phrasesData = [
+            { text: "은은한 아침 햇살 속, 소년/소녀는 세상을 다 가질 꿈을 꾸었지.", time: 80 },
+            { text: "벽돌집 너머 작았던 세상이 전부였던 그 시절의 순수함.", time: 220 },
+            { text: "거친 안개와 차가운 현실의 비바람이 앞을 가로막아도,", time: 420 },
+            { text: "나침반을 쥔 손에 힘을 주며 묵묵히 중심을 잡는다.", time: 580 },
+            { text: "어둠이 내린 바다 너머, 마침내 찬란히 빛나는 나의 미래.", time: 760 },
+            { text: "높게 솟은 마천루처럼, 나만의 자아를 단단히 세우리라.", time: 880 }
+        ];
+
+        let currentPhraseIndex = -1;
+        let phraseX = window.innerWidth;
+
+        function hexToRgb(hex) {
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        function interpolateColor(color1, color2, factor) {
+            let c1 = hexToRgb(color1);
+            let c2 = hexToRgb(color2);
+            let r = Math.round(c1.r + factor * (c2.r - c1.r));
+            let g = Math.round(c1.g + factor * (c2.g - c1.g));
+            let b = Math.round(c1.b + factor * (c2.b - c1.b));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function getAlpha(start, end, current) {
+            if (current < start || current > end) return 0;
+            let center = (start + end) / 2;
+            if (current < center) {
+                return (current - start) / (center - start);
+            } else {
+                return (end - current) / (end - center);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const horizonY = h * 0.7; 
+
+            // 1. 하늘 그라데이션 보간
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+            let topColor, midColor, botColor;
+
+            if (voyageProgress < 450) { 
+                let factor = Math.max(0, voyageProgress / 450);
+                topColor = interpolateColor('#1a2a6c', '#131829', factor);
+                midColor = interpolateColor('#b21f1f', '#5a6275', factor);
+                botColor = interpolateColor('#fdbb2d', '#7a8599', factor);
+            } else if (voyageProgress < 680) {
+                let factor = (voyageProgress - 450) / (680 - 450);
+                topColor = interpolateColor('#131829', '#0a0b1e', factor);
+                midColor = interpolateColor('#5a6275', '#1b1145', factor);
+                botColor = interpolateColor('#7a8599', '#ca337a', factor);
+            } else {
+                topColor = '#0a0b1e';
+                midColor = '#1b1145';
+                botColor = '#ca337a';
+            }
+
+            skyGrad.addColorStop(0, topColor);
+            skyGrad.addColorStop(0.5, midColor);
+            skyGrad.addColorStop(1, botColor);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // 밤하늘 별빛 효과
+            if (voyageProgress >= 500) {
+                let starAlpha = voyageProgress < 680 ? (voyageProgress - 500) / 180 : 1;
+                ctx.save();
+                ctx.globalAlpha = starAlpha * 0.7;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+                for(let i=0; i<60; i++) {
+                    let x = (Math.sin(i * 321) + 1) * w / 2;
+                    let y = (Math.cos(i * 167) + 1) * h * 0.4 / 2;
+                    ctx.fillRect(x, y, 1.5, 1.5);
+                }
+                ctx.restore();
+            }
+
+            // 2. 바다 너머 원경 풍경 드로잉
+            ctx.save();
+
+            // [과거 풍경 - 디테일 벽돌집]
+            let pastAlpha = getAlpha(-200, 480, voyageProgress);
+            if (pastAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = pastAlpha;
+                ctx.fillStyle = '#1c1b22';
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                ctx.lineTo(0, horizonY - 20);
+                ctx.quadraticCurveTo(w * 0.5, horizonY - 45, w, horizonY - 15);
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fill();
+
+                for (let i = 0; i < 3; i++) {
+                    let bw = 70;  let bh = 75;  let bx = w * 0.42 + (i * 115);  let by = horizonY - 55; 
+                    ctx.fillStyle = '#893d3d';
+                    ctx.fillRect(bx, by, bw, bh);
+
+                    ctx.strokeStyle = 'rgba(230, 200, 200, 0.25)'; ctx.lineWidth = 1;
+                    for (let row = by + 6; row < horizonY + 20; row += 9) {
+                        ctx.beginPath(); ctx.moveTo(bx, row); ctx.lineTo(bx + bw, row); ctx.stroke();
+                    }
+                    let shift = false;
+                    for (let row = by + 6; row < horizonY + 20; row += 9) {
+                        let startX = shift ? bx + 7 : bx;
+                        for (let col = startX; col < bx + bw; col += 16) {
+                            ctx.beginPath(); ctx.moveTo(col, row); ctx.lineTo(col, row + 9); ctx.stroke();
+                        }
+                        shift = !shift;
+                    }
+
+                    let cx = bx + 10; let cy = by - 22; let cw = 12; let ch = 24;
+                    ctx.fillStyle = '#662b2b'; ctx.fillRect(cx, cy, cw, ch);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.strokeRect(cx, cy, cw, ch);
+                    ctx.fillStyle = '#3a1e1e'; ctx.fillRect(cx - 2, cy, cw + 4, 4);
+
+                    smokeTime += 0.001;
+                    ctx.fillStyle = 'rgba(240, 240, 240, 0.22)';
+                    for(let j=0; j<4; j++) {
+                        let sy = cy - 10 - (j * 14) - ((smokeTime * 60) % 16);
+                        let sx = cx + (cw/2) + Math.sin(smokeTime * 4 + j) * 8;
+                        let sRadius = 4 + (j * 2);
+                        ctx.beginPath(); ctx.arc(sx, sy, sRadius, 0, Math.PI * 2); ctx.fill();
+                    }
+
+                    ctx.fillStyle = '#3a1e1e';
+                    ctx.beginPath(); ctx.moveTo(bx - 8, by); ctx.lineTo(bx + (bw / 2), by - 25); ctx.lineTo(bx + bw + 8, by); ctx.closePath(); ctx.fill();
+
+                    let wx = bx + 20; let wy = by + 20; let ww = 30; let wh = 24;
+                    ctx.fillStyle = '#fef08a'; ctx.shadowBlur = 12; ctx.shadowColor = '#fde047';
+                    ctx.fillRect(wx, wy, ww, wh); ctx.shadowBlur = 0; 
+
+                    ctx.strokeStyle = '#3a1e1e'; ctx.lineWidth = 2; ctx.strokeRect(wx, wy, ww, wh); 
+                    ctx.beginPath(); ctx.moveTo(wx + (ww / 2), wy); ctx.lineTo(wx + (ww / 2), wy + wh); ctx.moveTo(wx, wy + (wh / 2)); ctx.lineTo(wx + ww, wy + (wh / 2)); ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // [현재 풍경 - 안개 배경 언덕]
+            let presentAlpha = getAlpha(250, 750, voyageProgress);
+            if (presentAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = presentAlpha;
+                ctx.fillStyle = '#191f2c';
+                ctx.beginPath();
+                ctx.moveTo(0, h); ctx.lineTo(0, horizonY);
+                ctx.quadraticCurveTo(w * 0.3, horizonY - 60, w * 0.6, horizonY - 10);
+                ctx.quadraticCurveTo(w * 0.8, horizonY - 40, w, horizonY);
+                ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+                ctx.restore();
+            }
+
+            // [미래 풍경 - ★V3 디자인으로 수정된 마천루 디자인★]
+            let futureAlpha = getAlpha(580, 1500, voyageProgress);
+            if (futureAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = futureAlpha;
+
+
+                // 미래 하부 깊은 어둠 베이스
+                ctx.fillStyle = '#060814';
+                ctx.fillRect(0, horizonY - 40, w, h - horizonY + 50);
+
+                // 마천루 구조 데이터 (다양한 높이)
+                let startX = w * 0.05;
+                let buildings = [
+                    { w: 80,  h: 290, type: 'cyber-slope', color: '#ff007f' },     
+                    { w: 75,  h: 380, type: 'flat-antenna', color: '#00f2fe' },   
+                    { w: 100, h: 220, type: 'cyber-grid', color: '#00ffcc' },      
+                    { w: 120, h: 480, type: 'mega-center', color: '#00f2fe' }, 
+                    { w: 85,  h: 340, type: 'cyber-slope-rev', color: '#a855f7' },    
+                    { w: 110, h: 260, type: 'temple-roof', color: '#eab308' },  
+                    { w: 80,  h: 410, type: 'flat-antenna', color: '#ff007f' },
+                    { w: 95,  h: 310, type: 'cyber-grid', color: '#00ffcc' }
+                ];
+                
+                let spacing = (w * 0.9) / (buildings.length - 1);
+
+                for(let i=0; i<buildings.length; i++) {
+                    let b = buildings[i];
+                    let bx = startX + (i * spacing) - 20;
+                    let by = horizonY - b.h - 10; 
+                    let mb = b.h + 80; 
+                    
+                    ctx.fillStyle = '#0b1021'; 
+                    ctx.strokeStyle = 'rgba(0, 242, 254, 0.15)';
+                    ctx.lineWidth = 1.5;
+
+                    ctx.beginPath();
+                    if (b.type === 'cyber-grid') {
+                        ctx.moveTo(bx, by); ctx.lineTo(bx + b.w, by); ctx.lineTo(bx + b.w, by + mb); ctx.lineTo(bx, by + mb);
+                    } 
+                    else if (b.type === 'cyber-slope') {
+                        ctx.moveTo(bx, by + 50); ctx.lineTo(bx + b.w - 20, by); ctx.lineTo(bx + b.w, by); ctx.lineTo(bx + b.w, by + mb); ctx.lineTo(bx, by + mb);
+                    } 
+                    else if (b.type === 'cyber-slope-rev') {
+                        ctx.moveTo(bx, by); ctx.lineTo(bx + 20, by); ctx.lineTo(bx + b.w, by + 50); ctx.lineTo(bx + b.w, by + mb); ctx.lineTo(bx, by + mb);
+                    }
+                    else if (b.type === 'flat-antenna') {
+                        ctx.moveTo(bx, by); ctx.lineTo(bx + b.w, by); ctx.lineTo(bx + b.w, by + mb); ctx.lineTo(bx, by + mb);
+                    }
+                    else if (b.type === 'mega-center') {
+                        ctx.moveTo(bx, by + 80); ctx.lineTo(bx + b.w*0.35, by + 60); ctx.lineTo(bx + b.w*0.35, by); ctx.lineTo(bx + b.w*0.65, by); ctx.lineTo(bx + b.w*0.65, by + 60); ctx.lineTo(bx + b.w, by + 80); ctx.lineTo(bx + b.w, by + mb); ctx.lineTo(bx, by + mb);
+                    } 
+                    else if (b.type === 'temple-roof') {
+                        ctx.moveTo(bx + b.w/2, by); ctx.quadraticCurveTo(bx + 15, by + 20, bx - 15, by + 25); ctx.lineTo(bx, by + 45); ctx.lineTo(bx + b.w, by + 45); ctx.quadraticCurveTo(bx + b.w - 15, by + 20, bx + b.w/2, by);
+                        ctx.moveTo(bx, by + 45); ctx.lineTo(bx + b.w, by + 45); ctx.lineTo(bx + b.w, by + mb); ctx.lineTo(bx, by + mb);
+                    }
+                    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+                    // 안테나 구조물
+                    if(b.type === 'flat-antenna' || b.type === 'mega-center') {
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.moveTo(bx + b.w/2, by); ctx.lineTo(bx + b.w/2, by - 35); ctx.stroke();
+                        ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(bx + b.w/2, by - 35, 3, 0, Math.PI*2); ctx.fill();
+                    }
+
+                    // 정밀 창문 불빛 격자 (고밀도)
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+                    for(let col = bx + 8; col < bx + b.w - 8; col += 8) {
+                        for(let row = by + 90; row < horizonY - 10; row += 14) {
+                            if (b.type === 'mega-center' && row < by + 95) continue;
+                            if (b.type === 'temple-roof' && row < by + 50) continue;
+                            if (Math.sin(col * 1.1 + row * 0.8) > -0.05) {
+                                ctx.fillRect(col, row, 2.5, 5);
+                            }
+                        }
+                    }
+
+                    // 화려한 세로 네온 및 전광판 기믹
+                    ctx.save();
+                    ctx.shadowBlur = 14; ctx.shadowColor = b.color; ctx.fillStyle = b.color;
+                    
+                    if (i === 0) { 
+                        ctx.fillRect(bx + b.w - 10, by + 90, 4, 120);
+                    } 
+                    else if (i === 1) { 
+                        ctx.strokeStyle = '#00f2fe'; ctx.lineWidth = 1.5; ctx.beginPath();
+                        ctx.arc(bx - 25, by + 160, 10, 0, Math.PI*2); ctx.stroke();
+                        ctx.beginPath(); ctx.ellipse(bx - 25, by + 160, 18, 4, Math.PI/6, 0, Math.PI*2); ctx.stroke();
+                    }
+                    else if (i === 2) { 
+                        let hx = bx + b.w/2; let hy = by + 40;
+                        ctx.beginPath(); ctx.moveTo(hx, hy + 8);
+                        ctx.lineTo(hx - 12, hy - 4); ctx.lineTo(hx - 12, hy - 12); ctx.lineTo(hx - 4, hy - 12);
+                        ctx.lineTo(hx, hy - 6); ctx.lineTo(hx + 4, hy - 12); ctx.lineTo(hx + 12, hy - 12);
+                        ctx.lineTo(hx + 12, hy - 4); ctx.closePath(); ctx.fill();
+                    } 
+                    else if (i === 3) { // 세로 SAIL 홀로그램
+                        ctx.fillStyle = '#fff'; ctx.fillRect(bx + b.w/2 - 3, by + 90, 6, 180);
+                        ctx.fillStyle = '#00f2fe'; ctx.font = '10px sans-serif';
+                        ctx.fillText("S", bx + b.w/2 - 4, by + 110); ctx.fillText("A", bx + b.w/2 - 4, by + 130);
+                        ctx.fillText("I", bx + b.w/2 - 2, by + 150); ctx.fillText("L", bx + b.w/2 - 4, by + 170);
+                    }
+                    else if (i === 4) { // 번개 충전 심볼
+                        let cx = bx + b.w/2 - 6; let cy = by + 30;
+                        ctx.beginPath(); ctx.moveTo(cx + 8, cy); ctx.lineTo(cx, cy + 14); ctx.lineTo(cx + 5, cy + 14);
+                        ctx.lineTo(cx + 2, cy + 26); ctx.lineTo(cx + 12, cy + 10); ctx.lineTo(cx + 7, cy + 10); ctx.closePath(); ctx.fill();
+                    }
+                    else if (i === 6) { // 가로 전광판
+                        ctx.fillStyle = '#ff007f'; ctx.fillRect(bx + 10, by + 50, b.w - 20, 12);
+                        ctx.fillStyle = '#fff'; ctx.fillRect(bx + 16, by + 54, b.w - 32, 4);
+                    }
+                    ctx.restore();
+                }
+                ctx.restore();
+            }
+            ctx.restore();
+
+            // 3. 등대 및 절벽섬 렌더링 시스템 (상시 유지)
+            ctx.save();
+            
+            const lhX = 120; const lightY = horizonY - 155; 
+
+            // 항해 진행도에 따른 어둠 보간 (과거->미래로 갈수록 어두워짐)
+            let colorFactor = Math.min(1, Math.max(0, voyageProgress / 450));
+            
+            // 등대 및 섬 색상 명암 조절
+            let islandColor = interpolateColor('#111827', '#080c14', colorFactor);
+            let bodyColor   = interpolateColor('#f3f4f6', '#121722', colorFactor);
+            let stripeColor = interpolateColor('#dc2626', '#16121c', colorFactor); 
+            let darkColor   = interpolateColor('#1f2937', '#090d15', colorFactor);
+            let frameColor  = interpolateColor('#4b5563', '#0d121c', colorFactor);
+            let glassColor  = interpolateColor('#fee2e2', '#1a222f', colorFactor);
+            let roofColor   = interpolateColor('#dc2626', '#090d15', colorFactor);
+
+            // 절벽 바위 그리기
+            ctx.fillStyle = islandColor;
+            ctx.beginPath();
+            ctx.moveTo(0, h + 100); ctx.lineTo(0, horizonY - 50); ctx.lineTo(230, horizonY - 15); ctx.lineTo(300, horizonY + 150); ctx.lineTo(0, h + 100);
+            ctx.closePath(); ctx.fill();
+
+            // 등대 서치라이트 불빛 효과 (미래 구역에서는 은은하게 약화됨)
+            lightAngle += 0.012; 
+            ctx.save(); ctx.translate(lhX, lightY);
+            let fogDiffusion = w * 0.45;
+            let lightGrad = ctx.createRadialGradient(0, 0, 8, 0, 0, fogDiffusion);
+            
+            // 빛의 투명도를 voyageProgress에 맞춰 스무스하게 최저 0.15까지 낮춤
+            let currentLightIntensity = Math.max(0.12, 1 - (voyageProgress / 550));
+            lightGrad.addColorStop(0, `rgba(255, 248, 180, ${0.85 * currentLightIntensity})`); 
+            lightGrad.addColorStop(0.2, `rgba(254, 240, 138, ${0.35 * currentLightIntensity})`);
+            lightGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');    
+            ctx.fillStyle = lightGrad; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, fogDiffusion, lightAngle - 0.28, lightAngle + 0.28); ctx.closePath(); ctx.fill();
+            ctx.restore();
+
+            // 등대 구조물 그리기
+            ctx.fillStyle = darkColor; ctx.fillRect(lhX - 22, horizonY - 25, 44, 45);
+            ctx.fillStyle = bodyColor; ctx.beginPath(); ctx.moveTo(lhX - 16, horizonY - 25); ctx.lineTo(lhX - 11, horizonY - 140); ctx.lineTo(lhX + 11, horizonY - 140); ctx.lineTo(lhX + 16, horizonY - 25); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = stripeColor; ctx.beginPath(); ctx.moveTo(lhX - 14, horizonY - 60); ctx.lineTo(lhX - 13, horizonY - 85); ctx.lineTo(lhX + 13, horizonY - 85); ctx.lineTo(lhX + 14, horizonY - 60); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = darkColor; ctx.beginPath(); ctx.moveTo(lhX - 15, horizonY - 30); ctx.lineTo(lhX - 14, horizonY - 45); ctx.lineTo(lhX + 14, horizonY - 45); ctx.lineTo(lhX + 15, horizonY - 30); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = frameColor; ctx.fillRect(lhX - 17, horizonY - 145, 34, 6);
+            ctx.fillStyle = glassColor; ctx.fillRect(lhX - 10, horizonY - 165, 20, 20);
+            
+            // 등대 코어 램프 유지
+            ctx.save();
+            ctx.fillStyle = '#fff'; ctx.shadowBlur = 20; ctx.shadowColor = '#fde047'; 
+            ctx.globalAlpha = Math.max(0.25, currentLightIntensity);
+            ctx.beginPath(); ctx.arc(lhX, lightY, 6, 0, Math.PI*2); ctx.fill();
+            ctx.restore(); ctx.shadowBlur = 0;
+            
+            ctx.strokeStyle = darkColor; ctx.lineWidth = 1; ctx.strokeRect(lhX - 10, horizonY - 165, 20, 20);
+            ctx.fillStyle = roofColor; ctx.beginPath(); ctx.moveTo(lhX - 12, horizonY - 165); ctx.lineTo(lhX, horizonY - 182); ctx.lineTo(lhX + 12, horizonY - 165); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = darkColor; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(lhX, horizonY - 182); ctx.lineTo(lhX, horizonY - 194); ctx.stroke();
+            
+            ctx.restore();
+
+            // 4. 안개 레이어 연출 구역
+            if (voyageProgress < 680) {
+                let fogAlpha = 0;
+                if (voyageProgress > 250 && voyageProgress <= 380) {
+                    fogAlpha = ((voyageProgress - 250) / 130) * 0.62; 
+                } else if (voyageProgress > 380) {
+                    fogAlpha = 0.62;
+                }
+
+                if (fogAlpha > 0) {
+                    let fogGrad = ctx.createLinearGradient(0, horizonY - 90, 0, horizonY + 70);
+                    fogGrad.addColorStop(0, `rgba(241,245,249,0)`);
+                    fogGrad.addColorStop(0.5, `rgba(220,227,238, ${fogAlpha})`);
+                    fogGrad.addColorStop(1, `rgba(241,245,249,0)`);
+                    ctx.fillStyle = fogGrad;
+                    ctx.fillRect(0, horizonY - 90, w, 160);
+                }
+            }
+
+            // 5. 파도 설정 및 바다 하부 색상 보간
+            let waveSpeed = 0.015; let waveHeight = 16;
+            if (voyageProgress >= 350 && voyageProgress < 680) {
+                waveSpeed = 0.035; waveHeight = 26;
+            } else if (voyageProgress >= 680) {
+                waveSpeed = 0.012; waveHeight = 11; 
+            }
+            waveOffset += waveSpeed;
+
+            let seaBaseColor;
+            if (voyageProgress < 450) {
+                seaBaseColor = interpolateColor('#1b2336', '#252e42', voyageProgress / 450);
+            } else if (voyageProgress < 680) {
+                seaBaseColor = interpolateColor('#252e42', '#09081a', (voyageProgress - 450) / (680 - 450));
+            } else {
+                seaBaseColor = '#1a264a';
+            }
+
+            // 뒷 파도
+            ctx.fillStyle = seaBaseColor;
+            ctx.beginPath(); ctx.moveTo(0, h + 50);
+            for (let x = 0; x <= w; x += 10) {
+                let y = horizonY + Math.sin(x * 0.005 + waveOffset) * waveHeight + Math.cos(x * 0.01 + waveOffset) * (waveHeight/2);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(w, h + 50); ctx.closePath(); ctx.fill();
+
+            // 과거 선착장
+            let pastDockAlpha = getAlpha(-200, 440, voyageProgress);
+            if (pastDockAlpha > 0) {
+                ctx.save(); ctx.globalAlpha = pastDockAlpha;
+                let dockWoodGrad = ctx.createLinearGradient(0, horizonY - 14, 0, horizonY);
+                dockWoodGrad.addColorStop(0, interpolateColor('#6f2f0a', '#121722', colorFactor));
+                dockWoodGrad.addColorStop(1, interpolateColor('#512204', '#090d15', colorFactor));
+                
+                let dockStartX = w * 0.12; 
+                ctx.fillStyle = interpolateColor('#3b1604', '#090d15', colorFactor);
+                ctx.fillRect(dockStartX - 35, horizonY - 5, 10, 55); ctx.fillRect(dockStartX - 5, horizonY, 10, 60); ctx.fillRect(dockStartX + 25, horizonY - 2, 10, 58);
+                ctx.fillStyle = dockWoodGrad; ctx.fillRect(dockStartX - 55, horizonY - 14, 100, 14);
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1.5; ctx.strokeRect(dockStartX - 55, horizonY - 14, 100, 14);
+                ctx.restore();
+            }
+
+            // 항해 진행 제어
+            if (voyageStarted && voyageProgress < 1000) {
+                voyageProgress += 0.35; 
+                updateTimelineIndicator();
+                handlePhrases(w);
+            } else if (voyageProgress >= 1000) {
+                document.getElementById('end-modal').classList.remove('hide');
+                document.getElementById('timeline-indicator').style.display = 'none';
+            }
+
+            // 6. 메인 선박 렌더링
+            let startAnchorX = w * 0.12; let endAnchorX = w * 0.85; 
+            let boatX = startAnchorX + (voyageProgress / 1000) * (endAnchorX - startAnchorX);
+            let boatY = horizonY + Math.sin(boatX * 0.005 + waveOffset) * waveHeight + Math.cos(boatX * 0.01 + waveOffset) * (waveHeight/2);
+            let boatAngle = Math.cos(boatX * 0.005 + waveOffset) * (waveHeight * 0.0045);
+
+            ctx.save(); ctx.translate(boatX, boatY - 14); ctx.rotate(boatAngle);
+            ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(-42, 0); ctx.lineTo(42, 0); ctx.lineTo(30, 20); ctx.lineTo(-34, 20); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -56); ctx.stroke();
+            ctx.fillStyle = '#f1f5f9'; ctx.beginPath(); ctx.moveTo(0, -56); ctx.lineTo(26, -28); ctx.lineTo(0, -6); ctx.closePath(); ctx.fill();
+            
+            ctx.fillStyle = '#f59e0b'; ctx.shadowBlur = 30; ctx.shadowColor = '#fbbf24'; ctx.beginPath(); ctx.arc(-14, -6, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.restore(); ctx.shadowBlur = 0; 
+
+            // 전면부 파도 렌더링
+            let frontSeaColor;
+            if (voyageProgress < 680) {
+                frontSeaColor = 'rgba(23, 31, 48, 0.85)';
+            } else {
+                frontSeaColor = 'rgba(30, 45, 80, 0.95)';
+            }
+
+            ctx.fillStyle = frontSeaColor;
+            ctx.beginPath(); ctx.moveTo(0, h + 50);
+            for (let x = 0; x <= w; x += 10) {
+                let y = horizonY + 10 + Math.sin(x * 0.006 + waveOffset * 1.1) * (waveHeight * 0.9);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(w, h + 50); ctx.closePath(); ctx.fill();
+        }
+
+        function updateTimelineIndicator() {
+            const indicator = document.getElementById('timeline-indicator');
+            if (voyageProgress < 350) {
+                indicator.innerText = "── 과거: 소년의 벽돌집 ──";
+            } else if (voyageProgress < 680) {
+                indicator.innerText = "── 현재: 안개 속의 분투 ──";
+            } else {
+                indicator.innerText = "── 미래: 실현의 마천루 ──";
+            }
+        }
+
+        const phraseContainer = document.getElementById('phrase-container');
+        function handlePhrases(windowWidth) {
+            let activePhrase = phrasesData.find(p => voyageProgress >= p.time && voyageProgress < p.time + 160);
+            
+            if (activePhrase) {
+                if (currentPhraseIndex !== phrasesData.indexOf(activePhrase)) {
+                    currentPhraseIndex = phrasesData.indexOf(activePhrase);
+                    phraseContainer.innerHTML = `<div class="phrase" id="p-${currentPhraseIndex}">${activePhrase.text}</div>`;
+                    phraseX = windowWidth;
+                }
+                
+                const pElem = document.getElementById(`p-${currentPhraseIndex}`);
+                if (pElem) {
+                    phraseX -= 1.3; 
+                    pElem.style.transform = `translateX(${phraseX}px)`;
+                    pElem.style.opacity = 1;
+                }
+            } else {
+                const pElem = document.getElementById(`p-${currentPhraseIndex}`);
+                if (pElem) pElem.style.opacity = 0;
+            }
+        }
+
+        function startVoyage() {
+            document.getElementById('start-modal').classList.add('hide');
+            document.getElementById('timeline-indicator').style.display = 'block';
+            setTimeout(() => { voyageStarted = true; }, 800);
+        }
+
+        function endVoyage() {
+            document.getElementById('end-modal').classList.add('hide');
+            alert("현실의 세계로 안전하게 회항했습니다. 여정은 끝이 났지만 이 여정에서의 경험은 계속 간직하시길");
+            voyageStarted = false;
+            voyageProgress = 0;
+            currentPhraseIndex = -1;
+            document.getElementById('start-modal').classList.remove('hide');
+        }
+
+        animate();
+    </script>
+</body>
+</html>
