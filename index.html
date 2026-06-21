@@ -101,7 +101,7 @@
         .phrase {
             position: absolute;
             width: 100%;
-            left: -800px;
+            left: -300px;
             font-size: 1.8rem;
             font-weight: 700;
             letter-spacing: 3px;
@@ -169,12 +169,11 @@
         let lightAngle = 0; 
 
         const phrasesData = [
-            { text: "은은한 아침 햇살 속, 소년/소녀는 세상을 다 가질 꿈을 꾸었지.", time: 80 },
-            { text: "벽돌집 너머 작았던 세상이 전부였던 그 시절의 순수함.", time: 220 },
-            { text: "거친 안개와 차가운 현실의 비바람이 앞을 가로막아도,", time: 420 },
-            { text: "나침반을 쥔 손에 힘을 주며 묵묵히 중심을 잡는다.", time: 580 },
-            { text: "어둠이 내린 바다 너머, 마침내 찬란히 빛나는 나의 미래.", time: 760 },
-            { text: "높게 솟은 마천루처럼, 나만의 자아를 단단히 세우리라.", time: 880 }
+            { text: "이제 산은 기지개를 켜며 일어나 천천히 하품을 하고 있었다. 하품으로 토해낸 미세한 수증기들이 공중으로 흩어졌다.", time: 40 },
+            { text: "해가 나무에서 죽음의 갑옷인 얼음을 서서히 벗겨감에 따라, 산 전체에서 살랑거리고 소곤거리는 소리들이 되살아났다.", time: 240 },
+            { text: "산이 깨어나고 있어.산에서 눈을 떼지 않은 채 할아버지가 낮고 부드러운 목소리로 말씀하셨다. 그래요, 할아버지. 정말 산이 깨어나고 있어요.", time: 440 },
+            { text: "백성들은 배부르고 건강하여 행복한데 왜 굳이 법으로 금하고 있는 노래를 부르는지, 짜루, 설명을 해 다오. ", time: 640 },
+            { text: "그들이 노래하는 것은, 그들이 지금 행복하기 때문입니다.", time: 840 },
         ];
 
         let currentPhraseIndex = -1;
@@ -623,7 +622,7 @@
 
         const phraseContainer = document.getElementById('phrase-container');
         function handlePhrases(windowWidth) {
-            let activePhrase = phrasesData.find(p => voyageProgress >= p.time && voyageProgress < p.time + 160);
+            let activePhrase = phrasesData.find(p => voyageProgress >= p.time && voyageProgress < p.time + 200);
             
             if (activePhrase) {
                 if (currentPhraseIndex !== phrasesData.indexOf(activePhrase)) {
